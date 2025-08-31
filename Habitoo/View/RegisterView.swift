@@ -39,12 +39,9 @@ struct RegisterView: View {
 
                 Section {
                     Button {
-                        if isFormValid {
-                            alertMessage = "Formulário válido"
-                        } else {
-                            alertMessage = "Preencha os campos corretamente."
+                        Task {
+                            await registerUser()
                         }
-                        showingAlert = true
                     } label: {
                         Text("Criar conta")
                             .frame(maxWidth: .infinity)
@@ -59,6 +56,50 @@ struct RegisterView: View {
                 Text(alertMessage)
             }
         }
+    }
+
+    func registerUser() async {
+        guard let url = URL(string: "http://localhost:8080/auth/register") else {
+            alertMessage = "URL inválida"
+            showingAlert = true
+            return
+        }
+
+        let body: [String: Any] = [
+            "name": name,
+            "email": email,
+            "password": password
+        ]
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = jsonData
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 201 {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let emailResp = json["email"] as? String {
+                        alertMessage = "Usuário registrado com sucesso: \(emailResp)"
+                    } else {
+                        alertMessage = "Usuário criado"
+                    }
+                } else if httpResponse.statusCode == 409 {
+                    alertMessage = "E-mail já em uso"
+                } else {
+                    alertMessage = "Erro \(httpResponse.statusCode)"
+                }
+            }
+        } catch {
+            alertMessage = "Falha: \(error.localizedDescription)"
+        }
+
+        showingAlert = true
     }
 }
 
