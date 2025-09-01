@@ -11,7 +11,7 @@ import SwiftUI
 struct HabitooApp: App {
     var body: some Scene {
         WindowGroup {
-            RegisterView()
+            AuthView()
         }
     }
 }
