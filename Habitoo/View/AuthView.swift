@@ -13,32 +13,39 @@ enum AuthMode: String, CaseIterable {
 }
 
 struct AuthView: View {
+    @EnvironmentObject private var session: AppSession
     @State private var mode: AuthMode = .login
 
     var body: some View {
-        NavigationStack {
-            VStack {
-                Picker("Modo", selection: $mode) {
-                    ForEach(AuthMode.allCases, id: \.self) { m in
-                        Text(m.rawValue).tag(m)
+        if session.token != nil {
+            HabitsListView()
+        } else {
+            NavigationStack {
+                VStack {
+                    Picker("Modo", selection: $mode) {
+                        ForEach(AuthMode.allCases, id: \.self) { m in
+                            Text(m.rawValue).tag(m)
+                        }
                     }
-                }
-                .pickerStyle(.segmented)
-                .padding()
+                    .pickerStyle(.segmented)
+                    .padding()
 
-                Group {
-                    switch mode {
-                    case .login:
-                        LoginView()
-                    case .register:
-                        RegisterView()
+                    Group {
+                        switch mode {
+                        case .login:
+                            LoginView()
+                        case .register:
+                            RegisterView()
+                        }
                     }
+                    .animation(.easeInOut, value: mode)
                 }
-                .animation(.easeInOut, value: mode)
+                .navigationTitle("Habitoo")
             }
-            .navigationTitle("Habitoo")
         }
     }
 }
 
-#Preview { AuthView() }
+#Preview {
+    AuthView().environmentObject(AppSession())
+}
