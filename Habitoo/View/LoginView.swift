@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct LoginView: View {
+    @EnvironmentObject private var session: AppSession
     @State private var email = ""
     @State private var password = ""
     @State private var token: String?
@@ -63,6 +64,7 @@ struct LoginView: View {
                let json = try? JSONSerialization.jsonObject(with: respData) as? [String: Any],
                let tok = json["token"] as? String {
                 token = tok
+                session.token = tok
                 resultText = "Login OK"
             } else {
                 resultText = "Falha no login (\(http.statusCode))"
@@ -93,4 +95,4 @@ struct LoginView: View {
     }
 }
 
-#Preview { LoginView() }
+#Preview { LoginView().environmentObject(AppSession()) }
