@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct HabitooApp: App {
+    @StateObject private var session = AppSession()
+
     var body: some Scene {
         WindowGroup {
             AuthView()
+                .environmentObject(session)
         }
     }
 }
