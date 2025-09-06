@@ -17,32 +17,66 @@ struct HabitsListView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Novo hábito") {
-                    HStack {
+                Section {
+                    HStack(spacing: 12) {
                         TextField("Nome do hábito", text: $newHabitName)
-                        Button("Adicionar") {
+                            .textInputAutocapitalization(.words)
+                        Button {
                             Task { await createHabit() }
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .imageScale(.large)
                         }
                         .disabled(newHabitName.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .buttonStyle(.plain)
                     }
+                } header: {
+                    Text("Novo hábito")
                 }
 
-                Section("Seus hábitos") {
+                Section {
                     if loading && habits.isEmpty {
-                        ProgressView()
+                        HStack {
+                            Spacer()
+                            ProgressView().padding()
+                            Spacer()
+                        }
                     } else if habits.isEmpty {
-                        Text("Nenhum hábito ainda.")
-                            .foregroundStyle(.secondary)
+                        VStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle")
+                                .font(.system(size: 40, weight: .regular))
+                                .foregroundStyle(.tertiary)
+                            Text("Nenhum hábito ainda")
+                                .font(.headline)
+                            Text("Comece criando um hábito acima. Você pode editar depois.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 16)
+                        .listRowBackground(Color.clear)
                     } else {
                         ForEach(habits) { h in
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 6) {
                                 Text(h.name).font(.headline)
-                                Text(h.createdAt).font(.caption).foregroundStyle(.secondary)
+                                Text(formatDate(h.createdAt))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                         .onDelete { indexSet in
                             Task { await deleteHabits(at: indexSet) }
                         }
+                    }
+                } header: {
+                    Text("Seus hábitos")
+                } footer: {
+                    if !habits.isEmpty {
+                        Text("Dica: deslize um item para apagar")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -96,7 +130,9 @@ struct HabitsListView: View {
             guard http.statusCode == 201 else { alertMsg = "Falha ao criar (\(http.statusCode))"; return }
 
             if let created = try? JSONDecoder().decode(HabitDTO.self, from: respData) {
-                habits.insert(created, at: 0)
+                withAnimation {
+                    habits.insert(created, at: 0)
+                }
             } else {
                 await load()
             }
@@ -120,11 +156,23 @@ struct HabitsListView: View {
                     alertMsg = "Falha ao deletar"
                     continue
                 }
-                habits.remove(at: index)
+                withAnimation {
+                    habits.remove(at: index)
+                }
             } catch {
                 alertMsg = error.localizedDescription
             }
         }
+    }
+
+    func formatDate(_ isoString: String) -> String {
+        let iso = ISO8601DateFormatter()
+        if let date = iso.date(from: isoString) {
+            let f = DateFormatter()
+            f.dateFormat = "dd/MM/yyyy HH:mm"
+            return f.string(from: date)
+        }
+        return isoString
     }
 }
 
