@@ -14,6 +14,8 @@ struct LoginView: View {
     @State private var resultText = ""
     @State private var showingAlert = false
 
+    var onTapRegister: () -> Void = {}
+
     var isFormValid: Bool {
         email.contains("@") && password.count >= 6
     }
@@ -36,17 +38,13 @@ struct LoginView: View {
             HStack(spacing: 6) {
                 Text("Ainda não possui conta?")
                     .foregroundStyle(.secondary)
-                NavigationLink("Cadastrar") {
-                    RegisterView()
-                }
-                .fontWeight(.semibold)
+                Button("Cadastrar") { onTapRegister() }
+                    .fontWeight(.semibold)
             }
 
             Spacer(minLength: 0)
         }
         .padding(.top, 24)
-        .navigationTitle("Entrar")
-        .navigationBarTitleDisplayMode(.inline)
         .alert("Resposta", isPresented: $showingAlert) {
             Button("OK", role: .cancel) {}
         } message: {
