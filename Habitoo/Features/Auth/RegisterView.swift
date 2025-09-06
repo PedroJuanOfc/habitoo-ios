@@ -8,11 +8,13 @@
 import SwiftUI
 
 struct RegisterView: View {
-    @State private var name: String = ""
-    @State private var email: String = ""
-    @State private var password: String = ""
+    @State private var name = ""
+    @State private var email = ""
+    @State private var password = ""
+    @State private var resultText = ""
     @State private var showingAlert = false
-    @State private var alertMessage = ""
+
+    var onTapLogin: () -> Void = {}
 
     var isFormValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -21,88 +23,65 @@ struct RegisterView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Dados") {
-                    TextField("Nome", text: $name)
-                        .textContentType(.name)
-                        .autocapitalization(.words)
+        VStack(spacing: 24) {
+            Text("Criar conta")
+                .font(.largeTitle).bold()
 
-                    TextField("E-mail", text: $email)
-                        .textContentType(.emailAddress)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
+            CardContainer {
+                FormField(title: "Nome", text: $name, kind: .text, autocapitalization: .words)
+                FormField(title: "E-mail", text: $email, kind: .email)
+                FormField(title: "Senha", text: $password, kind: .secure)
 
-                    SecureField("Senha (mín. 6)", text: $password)
-                        .textContentType(.newPassword)
-                }
-
-                Section {
-                    Button {
-                        Task {
-                            await registerUser()
-                        }
-                    } label: {
-                        Text("Criar conta")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .disabled(!isFormValid)
+                PrimaryButton(title: "Cadastrar", enabled: isFormValid) {
+                    Task { await register() }
                 }
             }
-            .navigationTitle("Habitoo — Registrar")
-            .alert("Registro", isPresented: $showingAlert) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(alertMessage)
+            .padding(.top, 8)
+
+            HStack(spacing: 6) {
+                Text("Já possui uma conta?")
+                    .foregroundStyle(.secondary)
+                Button("Entrar") { onTapLogin() }
+                    .fontWeight(.semibold)
             }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 24)
+        .alert("Registro", isPresented: $showingAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(resultText)
         }
     }
 
-    func registerUser() async {
-        guard let url = URL(string: "http://localhost:8080/auth/register") else {
-            alertMessage = "URL inválida"
-            showingAlert = true
-            return
-        }
-
-        let body: [String: Any] = [
-            "name": name,
-            "email": email,
-            "password": password
-        ]
-
+    func register() async {
+        guard let url = URL(string: "http://127.0.0.1:8080/auth/register") else { return }
+        let body: [String: Any] = ["name": name, "email": email, "password": password]
         do {
-            let jsonData = try JSONSerialization.data(withJSONObject: body)
+            let data = try JSONSerialization.data(withJSONObject: body)
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = data
 
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = jsonData
+            let (respData, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse else { return }
 
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode == 201 {
-                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let emailResp = json["email"] as? String {
-                        alertMessage = "Usuário registrado com sucesso: \(emailResp)"
-                    } else {
-                        alertMessage = "Usuário criado"
-                    }
-                } else if httpResponse.statusCode == 409 {
-                    alertMessage = "E-mail já em uso"
-                } else {
-                    alertMessage = "Erro \(httpResponse.statusCode)"
-                }
+            if http.statusCode == 201,
+               let json = try? JSONSerialization.jsonObject(with: respData) as? [String: Any],
+               let emailResp = json["email"] as? String {
+                resultText = "Usuário registrado com sucesso: \(emailResp)"
+            } else if http.statusCode == 409 {
+                resultText = "E-mail já em uso"
+            } else {
+                resultText = "Falha no registro (\(http.statusCode))"
             }
         } catch {
-            alertMessage = "Falha: \(error.localizedDescription)"
+            resultText = "Erro: \(error.localizedDescription)"
         }
-
         showingAlert = true
     }
 }
 
-#Preview {
-    RegisterView()
-}
+#Preview { RegisterView() }
